@@ -34,3 +34,5 @@ I want to make this project better during [GaSiProMo](https://codelympics.io/pro
 
 ## Contributions
 Contributions to that project are more than welcome, especially... for everything!
+You are welcome to talk to me about it on [Golang slack](https://gophers.slack.com/messages/@maxime/). (If there is a need for it, I might make a channel)
+[Request an invite](http://bit.ly/go-slack-signup) if you are not already on the channel.
