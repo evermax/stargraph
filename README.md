@@ -9,6 +9,8 @@ An example on how to use it:
 stargraph -t githubtoken -r evermax/stargraph
 ```
 
+To get the project, just do `go get github.com/evermax/stargraph`
+
 DISCLAIMER: this tool only take the current stars on the repository and place them on a graph
 where their are placed by order of apparences. That is why it will never provide you with a shrinking graph.
 
