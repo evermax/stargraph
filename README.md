@@ -11,6 +11,8 @@ stargraph -t githubtoken -r evermax/stargraph
 
 To get the project, just do `go get github.com/evermax/stargraph`
 
+You can also now use the lib part of the project to get the timestamps of the stars on a repository as a `[]int64`
+
 DISCLAIMER: this tool only take the current stars on the repository and place them on a graph
 where their are placed by order of apparences. That is why it will never provide you with a shrinking graph.
 
@@ -25,9 +27,10 @@ The program will produce 3 files:
 I want to make this project better during [GaSiProMo](https://codelympics.io/projects/3) by:
 
  - [ ] clean up the code
- - [ ] Make the project a library using TDD
-   - [ ] Seperate the image, the Canvas JSON file and the jqplot JSON file
-   - [ ] Provide a writer to the library to write the image to
+ - [ ] write documentation and put it on godoc
+ - [x] Make the project a library using TDD
+   - [x] Seperate the image, the Canvas JSON file and the jqplot JSON file
+   - [x] Provide a writer to the library to write the image to
    - [ ] Find a plotting library that can have a time scale
  - [ ] Make a presentation website about the project
  - [ ] Make a web plateform to which you can connect via Github and graph your project
