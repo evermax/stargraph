@@ -3,83 +3,41 @@ package main
 import (
 	"flag"
 	"fmt"
-	"strconv"
+	"time"
+
+	"github.com/evermax/stargraph/lib"
 )
 
 var (
-	project, token string
-	batch          int
+	repo, token string
+	batch       int
 )
 
 func init() {
-	flag.StringVar(&project, "p", "evermax/stargraph", "Github Projet")
-	flag.StringVar(&token, "t", "", "Github API token")
-	flag.IntVar(&batch, "n", 100, "Number of stars per request")
+	flag.StringVar(&repo, "r", "evermax/stargraph", "Github Project repository using format :username/:repo. Default: evermax/stargraph")
+	flag.StringVar(&token, "t", "", "Github API token\nYou can go on to the following link to know how to get one: https://github.com/blog/1509-personal-api-tokens")
+	flag.IntVar(&batch, "n", 100, "Number of stars per request. Default: 100")
 }
 
 func main() {
 	flag.Parse()
 
-	fmt.Printf("Starting github start graph of %s\n", project)
-	repoUrl, count, err := getRepoInfo(token, project)
+	fmt.Printf("Starting github star graph of %s\n", repo)
+	startDate := time.Now()
+	repoUrl, starCount, err := lib.GetRepoInfo(token, repo)
+	//repoUrl, _, err := lib.GetRepoInfo(token, repo)
 	if err != nil {
-		fmt.Printf("An error occured while getting the info about the repo: %v\n", err)
+		fmt.Printf("An error occured while getting the repository info: %v\n", err)
 		return
 	}
-
-	repoUrl = repoUrl + "?per_page=" + strconv.Itoa(batch)
-	url := repoUrl + "&page=1"
-	linkFormat := "<" + repoUrl + "&page=%d>; rel=\"next\", <" +
-		repoUrl + "&page=%d>; rel=\"last\""
-
-	var position int = 0
-	var stargazers = make([]stargazer, count)
-	var timestamps = make([]int64, count)
-	links, err := getDataFromUrl(url, token, &stargazers, &position, &timestamps)
+	//timestamps, err := lib.GetTimestamps(batch, repoUrl, token)
+	timestamps, err := lib.GetTimestampsDistributed(starCount, batch, repoUrl, token)
 	if err != nil {
-		fmt.Printf("An error occured while getting data from github: %v\n", err)
+		fmt.Printf("An error occured while getting the stars from Github: %v\n", err)
 		return
 	}
-
-	for {
-		if links == "" {
-			fmt.Printf("Link header not found in the response, aborting.\n")
-			break
-		}
-		var next, last int
-		_, err := fmt.Sscanf(links, linkFormat, &next, &last)
-		if err != nil {
-			fmt.Printf("An error occured while parsing the Links header: %v\n"+
-				"Using this format: %s\nThe content was: %s\n", err, linkFormat, links)
-			return
-		}
-		nextUrl := repoUrl + "&page=" + strconv.Itoa(next)
-		links, err = getDataFromUrl(nextUrl, token, &stargazers, &position, &timestamps)
-		if err != nil {
-			fmt.Printf("The following error occured with the url: %s\n%v\n", nextUrl, err)
-			return
-		}
-		if next == last {
-			break
-		}
-	}
-
-	if err := persistData(timestamps); err != nil {
-		fmt.Printf("An error occured while persisting the data: %v", err)
-	}
-	if err := plotGraph(timestamps); err != nil {
-		fmt.Printf("An error occured while plotting the graph: %v", err)
-		return
-	}
-}
-
-type stargazer struct {
-	Timestamp string `json:"starred_at"`
-	User      user   `json:"user"`
-	Count     int    `json:"count"`
-	PageUrl   string `json:"pageUrl"`
-}
-
-type user struct {
-	Id int `json:"id"`
+	endDate := time.Now()
+	duration := endDate.Sub(startDate)
+	fmt.Printf("Timestamps delivered in %v\n", duration)
+	fmt.Printf("Timestamps: %v\n", timestamps)
 }
