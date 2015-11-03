@@ -8,7 +8,7 @@ import (
 	"github.com/gonum/plot/plotutil"
 	"github.com/gonum/plot/vg"
 	"github.com/gonum/plot/vg/draw"
-	"github.com/gonum/plot/vg/vgsvg"
+	"github.com/gonum/plot/vg/vgimg"
 )
 
 const dpi = 96
@@ -31,11 +31,12 @@ func PlotGraph(title string, timestamps []int64, w io.Writer) error {
 	}
 	plotutil.AddLinePoints(p, "Stars", points)
 
-	c := vgsvg.New(4*vg.Inch, 4*vg.Inch)
+	c := vgimg.New(4*vg.Inch, 4*vg.Inch)
+	cpng := vgimg.PngCanvas{c}
 
-	p.Draw(draw.New(c))
+	p.Draw(draw.New(cpng))
 
-	if _, err := c.WriteTo(w); err != nil {
+	if _, err := cpng.WriteTo(w); err != nil {
 		return err
 	}
 	return nil
