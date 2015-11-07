@@ -94,27 +94,24 @@ func GetTimestampsDistributed(starCount, perPage int, url, token string) ([]int6
 
 	// create error channel to send the errors
 	// from the goroutines and the master
-	errchan := make(chan error)
+	errchan := make(chan error, goprocnb)
 	defer close(errchan)
 
 	// create intchan to send order from the master
 	// to the goroutines
-	intchan := make(chan int64)
+	intchan := make(chan int64, goprocnb)
 	defer close(intchan)
 
 	// create finishedchan so the goroutines
 	// can tell the master that the job is finished
 	// and the master will say to stop
-	finishedchan := make(chan struct{})
+	finishedchan := make(chan struct{}, goprocnb)
 	defer close(finishedchan)
 
-	// create stopchans to send to the goroutine
+	// create stopchan to send to the goroutine
 	// the signal to stop it's work
-	stopchans := make([]chan struct{}, goprocnb)
-	for k := 0; k < goprocnb; k++ {
-		stopchans[k] = make(chan struct{})
-		defer close(stopchans[k])
-	}
+	stopchan := make(chan struct{}, goprocnb)
+	defer close(stopchan)
 
 	// create a WaitGroup to wait for the goroutine
 	// to end before finishing executing the program
@@ -123,7 +120,7 @@ func GetTimestampsDistributed(starCount, perPage int, url, token string) ([]int6
 	for j := 0; j < goprocnb; j++ {
 		fmt.Printf("Start goroutine: %d\n", j)
 		wg.Add(1)
-		go func(goroutine int, stopchan chan struct{}) {
+		go func(goroutine int) {
 			for {
 				select {
 				case input := <-intchan:
@@ -132,7 +129,7 @@ func GetTimestampsDistributed(starCount, perPage int, url, token string) ([]int6
 					if err != nil {
 						errchan <- err
 					} else {
-						finishedchan <- stru{}
+						finishedchan <- struct{}{}
 					}
 				case <-stopchan:
 					fmt.Printf("Goroutine %d recieved the order to stop\n", goroutine)
@@ -141,7 +138,7 @@ func GetTimestampsDistributed(starCount, perPage int, url, token string) ([]int6
 					return
 				}
 			}
-		}(j, stopchans[j])
+		}(j)
 	}
 
 	var i int64 = 1
@@ -158,16 +155,8 @@ L:
 			fmt.Println("A goroutine finished a job, incrementing i...")
 			if int(i) > batchCount {
 				fmt.Println("Job over, requesting goroutine stop...")
-				for k := 0; k < goprocnb-1; k++ {
-					<-finishedchan
-					fmt.Printf("Resp recieved\n")
-				}
 
-				for k := 0; k < goprocnb; k++ {
-					fmt.Printf("Sending request %d\n", k)
-					stopchans[k] <- stru{}
-					fmt.Printf("Request %d sent\n", k)
-				}
+				sendStopMessage(goprocnb, stopchan)
 				fmt.Println("Requests sent")
 				break L
 			}
@@ -175,16 +164,8 @@ L:
 			i++
 		case err := <-errchan:
 			fmt.Printf("An error occured while getting the timestamp: %v\n", err)
-			for k := 0; k < goprocnb-1; k++ {
-				<-finishedchan
-				fmt.Printf("Resp recieved\n")
-			}
 
-			for k := 0; k < goprocnb; k++ {
-				fmt.Printf("Sending request %d\n", k)
-				stopchans[k] <- stru{}
-				fmt.Printf("Request %d sent\n", k)
-			}
+			sendStopMessage(goprocnb, stopchan)
 			fmt.Println("Requests sent")
 			break L
 		}
@@ -235,6 +216,14 @@ func goroutineWork(timestamps *[]int64, mutex *sync.Mutex, i int64, arrayCursor 
 	return nil
 }
 
+func sendStopMessage(goprocs int, stopchan chan struct{}) {
+	for k := 0; k < goprocs; k++ {
+		fmt.Printf("Sending request %d\n", k)
+		stopchan <- struct{}{}
+		fmt.Printf("Request %d sent\n", k)
+	}
+}
+
 func getStargazers(pageUrl, token string) ([]stargazer, string, error) {
 	r, err := http.NewRequest("GET", pageUrl, nil)
 	if err != nil {
@@ -268,5 +257,3 @@ type sortableTimestamps []int64
 func (s sortableTimestamps) Len() int           { return len(s) }
 func (s sortableTimestamps) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s sortableTimestamps) Less(i, j int) bool { return s[i] < s[j] }
-
-type stru struct{}
