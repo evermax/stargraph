@@ -32,7 +32,7 @@ I want to make this project better during [GaSiProMo](https://codelympics.io/pro
    - [x] Seperate the image, the Canvas JSON file and the jqplot JSON file
    - [x] Provide a writer to the library to write the image to
    - [ ] Find a plotting library that can have a time scale
- - [ ] Make a presentation website about the project
+ - [x] Make a presentation website about the project
  - [ ] Make a web plateform to which you can connect via Github and graph your project
    - [ ] Have a way on that plateform to provide a image of this graph that can be used on the README of the repo
    - [ ] Automatically and frequently rebuild the graph for the ones that were already crawled
