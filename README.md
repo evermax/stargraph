@@ -1,7 +1,7 @@
 # Stargraph
 ## The perfect tool to plot graph of stars on Github repositories
 
-Currently there is just a CLI where you provide your Github API token via `-t` and the `:username/:reponame` via the `-r` parameters.
+There is a CLI where you provide your Github API token via `-t` and the `:username/:reponame` via the `-r` parameters.
 If you don't have a Github API token, you will be restricted by the API to 60 calls per hours.
 
 An example on how to use it:
@@ -11,19 +11,24 @@ stargraph -t githubtoken -r evermax/stargraph
 
 To get the project, just do `go get github.com/evermax/stargraph`
 
-You can also now use the lib part of the project to get the timestamps of the stars on a repository as a `[]int64`
-
-DISCLAIMER: this tool only take the current stars on the repository and place them on a graph
-where their are placed by order of apparences. That is why it will never provide you with a shrinking graph.
-
-It is still a funny way to see it the repo has a good growth. You just need to pay attention to the last star timestamp.
-
 The program will produce 3 files:
 
  - graph.png which contains the graph plotted with [gonum/plot](https://github.com/gonum/plot). It currently doesn't support date display so you will end up with Unix timestamp on the X-axis
  - canvasDB.json which contains graph data to be used with [CanvasJS](http://canvasjs.com)
  - jqplotDB.json which contains graph data to be used with [jqplot](http://www.jqplot.com)
 
+You can also now use the lib part of the project to get the timestamps of the stars on a repository as a `[]int64`
+
+## Disclaimer
+This tool only take the current stars on the repository and place them on a graph
+where their are placed by order of apparences. That is why it will never provide you with a shrinking graph.
+
+It is still a funny way to see it the repo has a good growth. You just need to pay attention to the last star timestamp.
+
+## Demo
+I made a proof of concept for this project on [Stargraph.co](http://stargraph.co). You can there provide a Github API token or log in with Github and try it!
+
+## BaSiProMo
 I want to make this project better during [GaSiProMo](https://codelympics.io/projects/3) by:
 
  - [ ] clean up the code
