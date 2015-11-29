@@ -100,3 +100,48 @@ func TestGetTimestampsMulPages(t *testing.T) {
 			" don't have the sme values\n", expectedTimestamps, timestamps)
 	}
 }
+
+func TestGetTimestampsDistributed(t *testing.T) {
+	filePathFormat := "testdata/distributed_stars_%d.json"
+	expectedTimestamps := 16
+	maxPage := 5
+	batch := 5
+
+	serverUrl := ""
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		var page int
+		pageString := r.FormValue("page")
+		if pageString != "" {
+			var err error
+			page, err = strconv.Atoi(pageString)
+			if err != nil {
+				t.Errorf("Parsing error of %s: %v\n", pageString, err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+		}
+		filePath := fmt.Sprintf(filePathFormat, page)
+		body, err := ioutil.ReadFile(filePath)
+		if err != nil {
+			t.Errorf("Reading error of %s: %v\n", filePath, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		linkFormat := BuildLinksFormat(serverUrl)
+		w.Header().Add("Link", fmt.Sprintf(linkFormat, page, maxPage))
+		w.Write(body)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(handler))
+	serverUrl = server.URL + "?per_page=" + strconv.Itoa(batch)
+	timestamps, err := GetTimestampsDistributed(expectedTimestamps, batch, server.URL, "token")
+
+	if err != nil {
+		t.Fatalf("An error occured in GetTimestampsDistributed %v\n", err)
+	}
+
+	timestampCount := len(timestamps)
+	if timestampCount != expectedTimestamps {
+		t.Fatalf("Expected %d timestamps and got %d", expectedTimestamps, timestampCount)
+	}
+}
