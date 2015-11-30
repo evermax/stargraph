@@ -80,7 +80,7 @@ func GetTimestampsDistributed(starCount, perPage int, url, token string) ([]int6
 	// Get the default number of GOMAXPROCS
 	goprocnb := runtime.GOMAXPROCS(0)
 	if goprocnb > batchCount {
-		return GetTimestamps(batchCount, url, token)
+		return GetTimestamps(perPage, url, token)
 	}
 	fmt.Printf("Number of goroutines: %d\n", goprocnb)
 
