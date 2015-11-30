@@ -32,7 +32,7 @@ func PlotGraph(title string, timestamps []int64, w io.Writer) error {
 	plotutil.AddLinePoints(p, "Stars", points)
 
 	c := vgimg.New(4*vg.Inch, 4*vg.Inch)
-	cpng := vgimg.PngCanvas{c}
+	cpng := vgimg.PngCanvas{Canvas: c}
 
 	p.Draw(draw.New(cpng))
 
