@@ -104,7 +104,7 @@ func TestGetTimestampsMulPages(t *testing.T) {
 func TestGetTimestampsDistributed(t *testing.T) {
 	filePathFormat := "testdata/distributed_stars_%d.json"
 	expectedTimestamps := 16
-	maxPage := 5
+	maxPage := 4
 	batch := 5
 
 	serverUrl := ""
