@@ -6,7 +6,7 @@ build:
 	go build
 
 test: build
-	go test ./...
+	go test ./... -race
 
 lib-coverage:
 	go test ./lib -coverprofile=coverage.out

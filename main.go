@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/evermax/stargraph/example"
+	"github.com/evermax/stargraph/github"
 	"github.com/evermax/stargraph/lib"
 )
 
@@ -27,17 +29,18 @@ func main() {
 
 	fmt.Printf("Starting github star graph of %s\n", repo)
 	startDate := time.Now()
-	repoUrl, starCount, err := lib.GetRepoInfo(token, repo)
+	repoInfo, err := github.GetRepoInfo(token, repo)
 	if err != nil {
 		fmt.Printf("An error occured while getting the repository info: %v\n", err)
 		return
 	}
 	var timestamps []int64
-	if concurrent {
-		timestamps, err = lib.GetTimestampsDistributed(starCount, batch, repoUrl, token)
+	/*if concurrent {
+		timestamps, err = lib.GetTimestampsDistributed(repoInfo.Count, batch, repoInfo.GetUrl(), token)
 	} else {
 		timestamps, err = lib.GetTimestamps(batch, repoUrl, token)
-	}
+	}*/
+	timestamps, err = example.GetTimestamps(batch, repoInfo.URL(), token)
 	if err != nil {
 		fmt.Printf("An error occured while getting the stars from Github: %v\n", err)
 		return
@@ -53,7 +56,7 @@ func main() {
 		return
 	}
 	defer canvasFile.Close()
-	if err = lib.WriteCanvasJS(timestamps, canvasFile); err != nil {
+	if err = lib.WriteCanvasJS(timestamps, repoInfo, canvasFile); err != nil {
 		fmt.Printf("An error occured when writing the canvas file%v\n", err)
 	}
 	fmt.Println("Done.")
@@ -65,7 +68,7 @@ func main() {
 		return
 	}
 	defer jqplotFile.Close()
-	if err = lib.WriteCanvasJS(timestamps, jqplotFile); err != nil {
+	if err = lib.WriteCanvasJS(timestamps, repoInfo, jqplotFile); err != nil {
 		fmt.Printf("An error occured when writing the jqplot file %v\n", err)
 		return
 	}
