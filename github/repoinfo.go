@@ -16,6 +16,10 @@ type IRepoInfo interface {
 	URL() string
 }
 
+const (
+	GithubRepoURL = "https://api.github.com/repos/"
+)
+
 type RepoInfo struct {
 	ID           int     `json:"id"`
 	Name         string  `json:"name"`
@@ -48,7 +52,7 @@ func (info *RepoInfo) SetExist(exist bool) {
 // The token is an API Github token to be able to lift off the 60 requests/hour limit
 // The repo is a Github repo formated as follow `:username/:reponame`
 func GetRepoInfo(token, repo string) (RepoInfo, error) {
-	url := "https://api.github.com/repos/" + repo
+	url := GithubRepoURL + repo
 	r, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return RepoInfo{}, err
@@ -68,13 +72,13 @@ func GetRepoInfo(token, repo string) (RepoInfo, error) {
 		return RepoInfo{}, nil
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return RepoInfo{}, fmt.Errorf("Unexpected status, expected %d, got %d", http.StatusOK, resp.StatusCode)
-	}
-
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return RepoInfo{}, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return RepoInfo{}, fmt.Errorf("Unexpected status, expected %d, got %d\nThe body was: %s\n", http.StatusOK, resp.StatusCode, string(bodyBytes))
 	}
 
 	var info RepoInfo
