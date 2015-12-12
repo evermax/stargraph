@@ -21,13 +21,17 @@ func failOnError(err error, msg string) {
 	}
 }
 
-func AddRepoWork(jobQueue chan service.Job, amqpURL, addQueueN string) {
+func AddRepoWork(jobQueue chan service.Job, amqpURL, addQueueN string) error {
 	conn, err := amqp.Dial(amqpURL)
-	failOnError(err, "Failed to connect to RabbitMQ")
+	if err != nil {
+		return fmt.Errorf("Failed to connect to AMQP with url %s: %v", amqpURL, err)
+	}
 	defer conn.Close()
 
 	ch, err := conn.Channel()
-	failOnError(err, "Failed to open a channel")
+	if err != nil {
+		return fmt.Errorf("Failed to open a channel: %v", err)
+	}
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
@@ -38,14 +42,18 @@ func AddRepoWork(jobQueue chan service.Job, amqpURL, addQueueN string) {
 		false,     // no-wait
 		nil,       // arguments
 	)
-	failOnError(err, "Failed to declare a queue")
+	if err != nil {
+		return fmt.Errorf("Failed to declare a queue: %v", err)
+	}
 
 	err = ch.Qos(
 		1,     // prefetch count
 		0,     // prefetch size
 		false, // global
 	)
-	failOnError(err, "Failed to set QoS")
+	if err != nil {
+		return fmt.Errorf("Failed to set QoS: %v", err)
+	}
 
 	msgs, err := ch.Consume(
 		q.Name, // queue
@@ -56,69 +64,79 @@ func AddRepoWork(jobQueue chan service.Job, amqpURL, addQueueN string) {
 		false,  // no-wait
 		nil,    // args
 	)
-	failOnError(err, "Failed to register a consumer")
+	if err != nil {
+		return fmt.Errorf("Failed to register a consumer: %v", err)
+	}
 
+	// Declare the datastore access
+	stre := store.NewStore()
+
+	forever := make(chan bool)
 	go func() {
 		for d := range msgs {
 			log.Printf("Received a message: %s", d.Body)
 
-			apiJob, err := api.Unmarshal([]byte(d.Body))
-			if err != nil {
-				d.Nack(false, true)
-				log.Printf("Error while unmarshalling the Job: %v", err)
-				continue
-			}
-
-			stre := store.NewStore()
-			repoInfo, _, err := stre.GetRepo(apiJob.RepoInfo.Name)
-			if err != nil {
-				d.Nack(false, true)
-				log.Printf("Error while getting the repo: %v", err)
-				continue
-			}
-
-			// Create the repository on the datastore, claim the work
-			repoInfo.WorkedOn = true
-			key, err := stre.AddRepo(repoInfo)
+			err := serviceWork(stre, jobQueue, d.Body)
 			if err == store.AlreadyExistError {
 				d.Ack(false)
-				log.Printf("Asked to recreate %v, aborting", repoInfo)
+				log.Printf("Asked to recreate %s, aborting", d.Body)
 				continue
 			}
 			if err != nil {
 				d.Nack(false, true)
-				log.Printf("Error while creating the repo: %v\t%v", repoInfo, err)
 				continue
 			}
-
-			timestamps, err := GetAllTimestamps(jobQueue, 100, apiJob.Token, repoInfo)
-			if err != nil {
-				d.Nack(false, true)
-				log.Printf("Error while getting the timestamps for %v\t%v", repoInfo, err)
-			}
-
-			lastStar := timestamps[len(timestamps)-1]
-
-			repoInfo.Timestamps = timestamps
-
-			repoInfo.WorkedOn = false
-			repoInfo.LastUpdate = time.Now().Format(time.RFC3339)
-			repoInfo.LastStarDate = time.Unix(lastStar, 0).Format(time.RFC3339)
-			key, err = stre.PutRepo(repoInfo, key)
-			if err != nil {
-				d.Nack(false, true)
-				log.Printf("Error while persisting the repo: %v\t%v", repoInfo, err)
-			}
-
-			// TODO: lib.CanvasJS(timestamps, repoInfo, buffer)
-			// Then send the buffer to Google Storage
-			// service.Objects.Insert(*bucketName, object).Media(file).Do()
-			// https://cloud.google.com/storage/docs/json_api/v1/json-api-go-samples
 
 			d.Ack(false)
 			log.Printf("Done")
 		}
+		forever <- true
 	}()
+	<-forever
+	return nil
+}
+
+func serviceWork(stre store.Store, jobQueue chan service.Job, body []byte) error {
+	apiJob, err := api.Unmarshal(body)
+	if err != nil {
+		return fmt.Errorf("Umarshalling error with %s: %v", body, err)
+	}
+
+	repoInfo, _, err := stre.GetRepo(apiJob.RepoInfo.Name)
+	if err != nil {
+		return fmt.Errorf("Access to store error with %s: %v", body, err)
+	}
+
+	// Create the repository on the datastore, claim the work
+	repoInfo.WorkedOn = true
+	key, err := stre.AddRepo(repoInfo)
+	if err != nil {
+		return fmt.Errorf("Adding to store error with %s: %v", body, err)
+	}
+
+	timestamps, err := GetAllTimestamps(jobQueue, 100, apiJob.Token, repoInfo)
+	if err != nil {
+		return fmt.Errorf("Error with %s: %v", body, err)
+	}
+
+	lastStar := timestamps[len(timestamps)-1]
+
+	repoInfo.Timestamps = timestamps
+
+	repoInfo.WorkedOn = false
+	repoInfo.LastUpdate = time.Now().Format(time.RFC3339)
+	repoInfo.LastStarDate = time.Unix(lastStar, 0).Format(time.RFC3339)
+	key, err = stre.PutRepo(repoInfo, key)
+	if err != nil {
+		return fmt.Errorf("Put to store error with %s: %v", body, err)
+	}
+
+	// TODO: Think if this could be done on the fly first
+	// TODO: lib.CanvasJS(timestamps, repoInfo, buffer)
+	// Then send the buffer to Google Storage
+	// service.Objects.Insert(*bucketName, object).Media(file).Do()
+	// https://cloud.google.com/storage/docs/json_api/v1/json-api-go-samples
+	return nil
 }
 
 func GetAllTimestamps(jobQueue chan service.Job, perPage int, token string, repoInfo github.IRepoInfo) ([]int64, error) {

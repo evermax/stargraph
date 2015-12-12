@@ -28,20 +28,7 @@ It is still a funny way to see it the repo has a good growth. You just need to p
 ## Demo
 I made a proof of concept for this project on [Stargraph.co](http://stargraph.co). You can there provide a Github API token or log in with Github and try it!
 
-## BaSiProMo
-I want to make this project better during [GaSiProMo](https://codelympics.io/projects/3) by:
-
- - [ ] clean up the code
- - [ ] write documentation and put it on godoc
- - [x] Make the project a library using TDD
-   - [x] Seperate the image, the Canvas JSON file and the jqplot JSON file
-   - [x] Provide a writer to the library to write the image to
-   - [ ] Find a plotting library that can have a time scale
- - [x] Make a presentation website about the project
- - [ ] Make a web plateform to which you can connect via Github and graph your project
-   - [ ] Have a way on that plateform to provide a image of this graph that can be used on the README of the repo
-   - [ ] Automatically and frequently rebuild the graph for the ones that were already crawled
-
+## Stargraph structure
 
 ## Contributions
 Contributions to that project are more than welcome, especially... for everything!
