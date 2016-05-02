@@ -8,11 +8,11 @@ import (
 	"github.com/evermax/stargraph/github"
 )
 
-// A simple type wrapper for chan chan Job
+// WorkerPool is a simple type wrapper for chan chan Job
 // So it is easier to pass/expect it.
 type WorkerPool chan chan Job
 
-// The job structure gets passed through the Job chan
+// Job structure gets passed through the Job chan
 // to tell one of the go routine of a worker what to do
 type Job struct {
 	Num               int
@@ -22,6 +22,11 @@ type Job struct {
 	TimestampsChannel chan []int64
 }
 
+// Worker is the structure that will be passed to the worker pool
+// It has two methods public Start and Stop that are here to start and stop the worker.
+// It can be use both to get and update the stars of a Github repository
+// as it only return for the stars for the given ApiURL (which contains the number of stars and the page).
+// TODO should it be a interface?
 type Worker struct {
 	WorkerPool   WorkerPool
 	JobChannel   chan Job
@@ -29,6 +34,9 @@ type Worker struct {
 	quit         chan bool
 }
 
+// NewWorker create a new worker linked to the provided workerPool.
+// The Worker must be manually started for it to join the worker pool.
+// The number provided is only there for debugging purposes.
 func NewWorker(workerPool WorkerPool, number int) Worker {
 	return Worker{
 		WorkerPool:   workerPool,
@@ -38,6 +46,9 @@ func NewWorker(workerPool WorkerPool, number int) Worker {
 	}
 }
 
+// Start method will start the worker.
+// The worker join the WorkerPool by providing its JobChannel.
+// It then listen to the JobChannel for a new job to work on.
 func (w Worker) Start() {
 	go func() {
 		for {
@@ -57,6 +68,8 @@ func (w Worker) Start() {
 	}()
 }
 
+// Stop method will send a message to the worker to make it stop.
+// It is interesting put this Stop method in a defer function.
 func (w Worker) Stop() {
 	go func() {
 		w.quit <- true
@@ -68,14 +81,14 @@ func (job Job) work() ([]int64, error) {
 	if strings.Contains(job.ApiURL, "?") {
 		getParam = "&page="
 	}
-	pageUrl := job.ApiURL + getParam + strconv.Itoa(int(job.Num))
+	pageURL := job.ApiURL + getParam + strconv.Itoa(int(job.Num))
 
-	stargazers, _, err := github.GetStargazers(pageUrl, job.ApiToken)
+	stargazers, _, err := github.GetStargazers(pageURL, job.ApiToken)
 	if err != nil {
 		return make([]int64, 0), err
 	}
 
-	timestamps := make([]int64, 0)
+	var timestamps []int64
 	for _, star := range stargazers {
 		timestamp, err := star.GetTimestamp()
 		if err != nil {

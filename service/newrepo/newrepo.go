@@ -1,3 +1,5 @@
+// Package newrepo contains the worker that should create a new entry in the database for a github repo
+// that is not already in there.
 package newrepo
 
 import (
@@ -14,26 +16,26 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func failOnError(err error, msg string) {
-	if err != nil {
-		log.Fatalf("%s: %s", msg, err)
-		panic(fmt.Sprintf("%s: %s", msg, err))
-	}
-}
+// RunCreator create a connection to the AMQP server and listen to incoming requests
+// To create Github repository graphs.
+// TODO: Transform that into an method of an object that is called creator (or better name)
+func RunCreator(jobQueue chan service.Job, amqpURL, addQueueN string) error {
 
-func AddRepoWork(jobQueue chan service.Job, amqpURL, addQueueN string) error {
+	// Dial connection to the AMQP server
 	conn, err := amqp.Dial(amqpURL)
 	if err != nil {
 		return fmt.Errorf("Failed to connect to AMQP with url %s: %v", amqpURL, err)
 	}
 	defer conn.Close()
 
+	// Open a channel of communication through the connection
 	ch, err := conn.Channel()
 	if err != nil {
 		return fmt.Errorf("Failed to open a channel: %v", err)
 	}
 	defer ch.Close()
 
+	// Declare a queue
 	q, err := ch.QueueDeclare(
 		addQueueN, // name
 		true,      // durable
@@ -55,6 +57,8 @@ func AddRepoWork(jobQueue chan service.Job, amqpURL, addQueueN string) error {
 		return fmt.Errorf("Failed to set QoS: %v", err)
 	}
 
+	// Register as a consumer of the queue and
+	// return a channel that brings the incoming messages
 	msgs, err := ch.Consume(
 		q.Name, // queue
 		"",     // consumer
@@ -64,8 +68,9 @@ func AddRepoWork(jobQueue chan service.Job, amqpURL, addQueueN string) error {
 		false,  // no-wait
 		nil,    // args
 	)
+
 	if err != nil {
-		return fmt.Errorf("Failed to register a consumer: %v", err)
+		return fmt.Errorf("Failed to register as consumer: %v", err)
 	}
 
 	// Declare the datastore access
@@ -76,10 +81,10 @@ func AddRepoWork(jobQueue chan service.Job, amqpURL, addQueueN string) error {
 		for d := range msgs {
 			log.Printf("Received a message: %s", d.Body)
 
-			err := serviceWork(stre, jobQueue, d.Body)
-			if err == store.AlreadyExistError {
+			err := creatorWork(stre, jobQueue, d.Body)
+			if err == store.ErrAlreadyExist {
 				d.Ack(false)
-				log.Printf("Asked to recreate %s, aborting", d.Body)
+				log.Printf("WARN: Asked to recreate %s, aborting", d.Body)
 				continue
 			}
 			if err != nil {
@@ -96,7 +101,7 @@ func AddRepoWork(jobQueue chan service.Job, amqpURL, addQueueN string) error {
 	return nil
 }
 
-func serviceWork(stre store.Store, jobQueue chan service.Job, body []byte) error {
+func creatorWork(stre store.Store, jobQueue chan service.Job, body []byte) error {
 	apiJob, err := api.Unmarshal(body)
 	if err != nil {
 		return fmt.Errorf("Umarshalling error with %s: %v", body, err)
@@ -139,12 +144,16 @@ func serviceWork(stre store.Store, jobQueue chan service.Job, body []byte) error
 	return nil
 }
 
+// GetAllTimestamps will get the timestamps for all the stars of the passed repository.
+// It will use the perPage number and the Github API token to make a number of queries the the Github API.
+// The jobQueue is used to have a pool of workers that will make one API call at a time each.
+// The service itself would typically share ressources with several other services.
 func GetAllTimestamps(jobQueue chan service.Job, perPage int, token string, repoInfo github.IRepoInfo) ([]int64, error) {
 	// calculate the number of calls to make to Github API
-	batchCount := repoInfo.GetCount() / perPage
-	// don't forget to get the incomplete page
-	if repoInfo.GetCount()%perPage > 0 {
-		batchCount++
+	numberOfAPICall := repoInfo.StarCount() / perPage
+	// don't forget to add the possible incomplete page
+	if repoInfo.StarCount()%perPage > 0 {
+		numberOfAPICall++
 	}
 
 	url := repoInfo.URL() + "?per_page=" + strconv.Itoa(perPage)
@@ -152,7 +161,7 @@ func GetAllTimestamps(jobQueue chan service.Job, perPage int, token string, repo
 	// create the timestamp array that will be used to
 	// agregate all the timestamps that the main routine gets
 	// from the workers
-	timestamps := make([]int64, 0)
+	var timestamps []int64
 	stampsChan := make(chan []int64, 8)
 	defer close(stampsChan)
 
@@ -161,9 +170,10 @@ func GetAllTimestamps(jobQueue chan service.Job, perPage int, token string, repo
 	errchan := make(chan error)
 	defer close(errchan)
 
-	var j int = 0
+	var j int
 	var err error
-	for i := 0; i < batchCount; i++ {
+	// Put jobs to make API calls in the job queue
+	for i := 0; i < numberOfAPICall; i++ {
 		jobQueue <- service.Job{
 			Num:               i + 1,
 			ApiURL:            url,
@@ -177,14 +187,14 @@ L:
 		select {
 		case err = <-errchan:
 			j++
-			if j >= batchCount {
+			if j >= numberOfAPICall {
 				break L
 			}
 
 		case stamps := <-stampsChan:
 			timestamps = append(timestamps, stamps...)
 			j++
-			if j >= batchCount {
+			if j >= numberOfAPICall {
 				break L
 			}
 		}

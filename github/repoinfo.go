@@ -12,7 +12,7 @@ import (
 // For test purpose
 // May evolve
 type IRepoInfo interface {
-	GetCount() int
+	StarCount() int
 	URL() string
 }
 
@@ -36,7 +36,7 @@ func (info RepoInfo) URL() string {
 	return "https://api.github.com/repositories/" + strconv.Itoa(info.ID) + "/stargazers"
 }
 
-func (info RepoInfo) GetCount() int {
+func (info RepoInfo) StarCount() int {
 	return info.Count
 }
 
@@ -48,14 +48,14 @@ func (info *RepoInfo) SetExist(exist bool) {
 	info.exist = exist
 }
 
-// Get the api url from a repo.
+// GetRepoInfo get the api url from a repo.
 // The token is an API Github token to be able to lift off the 60 requests/hour limit
 // The repo is a Github repo formated as follow `:username/:reponame`
-func GetRepoInfo(token, repo string) (RepoInfo, error) {
+func GetRepoInfo(token, repo string) (info RepoInfo, err error) {
 	url := GithubRepoURL + repo
 	r, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return RepoInfo{}, err
+		return
 	}
 	if token != "" {
 		r.Header.Add("Authorization", "token "+token)
@@ -64,26 +64,26 @@ func GetRepoInfo(token, repo string) (RepoInfo, error) {
 	client := http.Client{}
 	resp, err := client.Do(r)
 	if err != nil {
-		return RepoInfo{}, err
+		return
 	}
 
 	// The repo doesn't exist so no error, just empty repo
 	if resp.StatusCode == http.StatusNotFound {
-		return RepoInfo{}, nil
+		return
 	}
 
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return RepoInfo{}, err
+		return
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return RepoInfo{}, fmt.Errorf("Unexpected status, expected %d, got %d\nThe body was: %s\n", http.StatusOK, resp.StatusCode, string(bodyBytes))
+		err = fmt.Errorf("Unexpected status, expected %d, got %d\nThe body was: %s\n", http.StatusOK, resp.StatusCode, string(bodyBytes))
+		return
 	}
 
-	var info RepoInfo
-	if err := json.Unmarshal(bodyBytes, &info); err != nil {
-		return RepoInfo{}, err
+	if err = json.Unmarshal(bodyBytes, &info); err != nil {
+		return
 	}
 	info.exist = true
 

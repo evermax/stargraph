@@ -17,7 +17,7 @@ type mockRepoInfo struct {
 	url   string
 }
 
-func (info mockRepoInfo) GetCount() int {
+func (info mockRepoInfo) StarCount() int {
 	return info.count
 }
 
@@ -38,7 +38,7 @@ func TestGetAllTimestamps(t *testing.T) {
 	dispatch := service.NewDispatcher(maxWorker, jobQueue)
 	dispatch.Run()
 
-	serverUrl := ""
+	var serverURL string
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		var page int
 		pageString := r.FormValue("page")
@@ -58,16 +58,16 @@ func TestGetAllTimestamps(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		linkFormat := github.BuildLinksFormat(serverUrl)
+		linkFormat := github.BuildLinksFormat(serverURL)
 		w.Header().Add("Link", fmt.Sprintf(linkFormat, page, maxPage))
 		w.Write(body)
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(handler))
-	serverUrl = server.URL + "?per_page=" + strconv.Itoa(batch)
+	serverURL = server.URL + "?per_page=" + strconv.Itoa(batch)
 	repoInfo := mockRepoInfo{
 		count: expectedTimestamps,
-		url:   serverUrl,
+		url:   serverURL,
 	}
 	timestamps, err := GetAllTimestamps(jobQueue, batch, "token", repoInfo)
 

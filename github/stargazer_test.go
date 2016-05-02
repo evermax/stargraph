@@ -18,15 +18,15 @@ func TestGetStargazers(t *testing.T) {
 		t.Fatalf("An error occured while reading the file %s: %v\n", filePath, err)
 	}
 
-	serverUrl := ""
+	serverURL := ""
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		linkFormat := BuildLinksFormat(serverUrl)
+		linkFormat := BuildLinksFormat(serverURL)
 		w.Header().Add("Link", fmt.Sprintf(linkFormat, 1, 1))
 		w.WriteHeader(http.StatusOK)
 		w.Write(body)
 	}
 	server := httptest.NewServer(http.HandlerFunc(handler))
-	serverUrl = server.URL + "?per_page=" + strconv.Itoa(batch)
+	serverURL = server.URL + "?per_page=" + strconv.Itoa(batch)
 
 	timestamps, _, err := GetStargazers(server.URL, "token")
 	if err != nil {
@@ -46,5 +46,29 @@ func TestGetStargazers(t *testing.T) {
 	if !equals {
 		t.Fatalf("The expected timestamps %v and the actual ones %v"+
 			" don't have the same values\n", expectedTimestamps, timestamps)
+	}
+}
+
+func TestTimestampParsingSuccess(t *testing.T) {
+	star := Stargazer{
+		Timestamp: "2006-01-02T15:04:05Z",
+	}
+	var expectedTimestamp int64 = 1136214245
+	timestamp, err := star.GetTimestamp()
+	if err != nil {
+		t.Fatalf("An error occured while parsing the timestamp: %s", err.Error())
+	}
+	if timestamp != expectedTimestamp {
+		t.Fatalf("Expected %d, got %d", expectedTimestamp, timestamp)
+	}
+}
+
+func TestTimestampParsingError(t *testing.T) {
+	star := Stargazer{
+		Timestamp: "2006-01-02T15:04:054Z",
+	}
+	_, err := star.GetTimestamp()
+	if err == nil {
+		t.Fatal("Expected error in parsing")
 	}
 }

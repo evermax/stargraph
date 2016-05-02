@@ -1,8 +1,8 @@
 package update
 
-// Return true if at least one of the newstamps of the allstamps at the right place
+// CompareAndFusion return true if at least one of the newstamps of the allstamps at the right place
 // In math if there is a i between 0 and perPage -1 that allstamps[(page -1)*perPage + i] = newstamps[i]
-// Return false there wise
+// Return false otherwise
 // Change all the values that don't match that inside allstamps
 // TODO: Find a better name for this function
 func CompareAndFusion(perPage, page int, newStamps []int64, allstamps *[]int64) bool {

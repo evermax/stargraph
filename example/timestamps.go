@@ -8,12 +8,11 @@ import (
 	"github.com/evermax/stargraph/github"
 )
 
-// Get the timestamps of the stars from the Github API
+// GetTimestamps gets the timestamps of the stars from the Github API
 // count is the number of pages to query
 // url is the Github API url of the repository you want to crawl
 // token is the Github API token
-func GetTimestamps(perPage int, url, token string) ([]int64, error) {
-	timestamps := make([]int64, 0)
+func GetTimestamps(perPage int, url, token string) (timestamps []int64, err error) {
 	if perPage > 0 {
 		url = url + "?per_page=" + strconv.Itoa(perPage)
 	}
@@ -23,20 +22,23 @@ func GetTimestamps(perPage int, url, token string) ([]int64, error) {
 	if strings.Contains(url, "?") {
 		getParam = "&page="
 	}
-	var i int = 1
-	var last int = 2
+	var i = 1
+	var last = 2
 	var next int
 	for {
-		pageUrl := url + getParam + strconv.Itoa(i)
-		stargazers, linkHeader, err := github.GetStargazers(pageUrl, token)
+		pageURL := url + getParam + strconv.Itoa(i)
+		var stargazers []github.Stargazer
+		var linkHeader string
+		stargazers, linkHeader, err = github.GetStargazers(pageURL, token)
 		if err != nil {
-			return make([]int64, 0), err
+			return
 		}
 
+		var timestamp int64
 		for _, star := range stargazers {
-			timestamp, err := star.GetTimestamp()
+			timestamp, err = star.GetTimestamp()
 			if err != nil {
-				return make([]int64, 0), err
+				return
 			}
 			timestamps = append(timestamps, timestamp)
 		}
@@ -50,7 +52,8 @@ func GetTimestamps(perPage int, url, token string) ([]int64, error) {
 		if i < last {
 			_, err = fmt.Sscanf(linkHeader, linkFormat, &next, &last)
 			if err != nil {
-				return make([]int64, 0), fmt.Errorf("An error occured while parsing the header: %v, parser is %s, link header is %s", err, linkFormat, linkHeader)
+				err = fmt.Errorf("An error occured while parsing the header: %v, parser is %s, link header is %s", err, linkFormat, linkHeader)
+				return
 			}
 		}
 

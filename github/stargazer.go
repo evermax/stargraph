@@ -20,10 +20,10 @@ func (s Stargazer) GetTimestamp() (int64, error) {
 	return t.Unix(), nil
 }
 
-func GetStargazers(pageUrl, token string) ([]Stargazer, string, error) {
+func GetStargazers(pageUrl, token string) (stargazers []Stargazer, link string, err error) {
 	r, err := http.NewRequest("GET", pageUrl, nil)
 	if err != nil {
-		return make([]Stargazer, 0), "", fmt.Errorf("An error occured while creating the request: %v", err)
+		return
 	}
 
 	r.Header.Add("Accept", "application/vnd.github.v3.star+json")
@@ -32,18 +32,21 @@ func GetStargazers(pageUrl, token string) ([]Stargazer, string, error) {
 	client := http.Client{}
 	resp, err := client.Do(r)
 	if err != nil {
-		return make([]Stargazer, 0), "", fmt.Errorf("An error occured while doing the request: %v", err)
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("Wrong error status while requesting stargazers: %d", resp.StatusCode)
+		return
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return make([]Stargazer, 0), "", fmt.Errorf("An error occured while reading the body: %v", err)
+		return
 	}
 
-	stargazers := make([]Stargazer, 0)
 	err = json.Unmarshal(body, &stargazers)
 	if err != nil {
-		return make([]Stargazer, 0), "", fmt.Errorf("An error occured while unmarshalling: %v", err)
+		return
 	}
 	return stargazers, resp.Header.Get("Link"), nil
 }
