@@ -34,8 +34,7 @@ func TestGetAllTimestamps(t *testing.T) {
 	// Create worker queue
 	maxQueue := 4
 	maxWorker := 4
-	jobQueue := make(chan service.Job, maxQueue)
-	dispatch := service.NewDispatcher(maxWorker, jobQueue)
+	dispatch := service.NewDispatcher(maxWorker, maxQueue)
 	dispatch.Run()
 
 	var serverURL string
@@ -69,7 +68,7 @@ func TestGetAllTimestamps(t *testing.T) {
 		count: expectedTimestamps,
 		url:   serverURL,
 	}
-	timestamps, err := GetAllTimestamps(jobQueue, batch, "token", repoInfo)
+	timestamps, err := GetAllTimestamps(dispatch.JobQueue, batch, "token", repoInfo)
 
 	if err != nil {
 		dispatch.Stop()

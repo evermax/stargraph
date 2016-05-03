@@ -16,10 +16,23 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// RunCreator create a connection to the AMQP server and listen to incoming requests
+// Creator is just a wrapper of string
+type Creator string
+
+// NewCreator will create a new creator
+func NewCreator() Creator {
+	return Creator("creator")
+}
+
+// Type will return the string "creator" to implement the interface.
+func (c Creator) Type() string {
+	return string(c)
+}
+
+// Run create a connection to the AMQP server and listen to incoming requests
 // To create Github repository graphs.
 // TODO: Transform that into an method of an object that is called creator (or better name)
-func RunCreator(jobQueue chan service.Job, amqpURL, addQueueN string) error {
+func (c Creator) Run(jobQueue chan service.Job, amqpURL, addQueueN string) error {
 
 	// Dial connection to the AMQP server
 	conn, err := amqp.Dial(amqpURL)

@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// Stargazer will be used to parse the result of a request from the Github API for the stars.
 type Stargazer struct {
 	Timestamp string `json:"starred_at"`
 }
