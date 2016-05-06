@@ -45,7 +45,7 @@ func TestExist(t *testing.T) {
 func TestBuildFormatWithPerPage(t *testing.T) {
 	var url = "test.com?perPage=3"
 	var expectedFormat = "<" + url + "&page=%d>; rel=\"next\", <" + url + "&page=%d>; rel=\"last\""
-	
+
 	var result = BuildLinksFormat(url)
 	if expectedFormat != result {
 		t.Fatalf("expected following build format: %s\nGot: %s", expectedFormat, result)
@@ -55,7 +55,7 @@ func TestBuildFormatWithPerPage(t *testing.T) {
 func TestBuildFormatWithoutPerPage(t *testing.T) {
 	var url = "test.com"
 	var expectedFormat = "<" + url + "?page=%d>; rel=\"next\", <" + url + "?page=%d>; rel=\"last\""
-	
+
 	var result = BuildLinksFormat(url)
 	if expectedFormat != result {
 		t.Fatalf("expected following build format: %s\nGot: %s", expectedFormat, result)

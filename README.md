@@ -43,9 +43,9 @@ The services are divided in two: Creators and Updators. The creator will create 
 The updator will check if there was any change in the stars, if not it will just leave the data as it is, if so it will update the data that are not correct.
 ![different services and setup for them](services.png)
 
-Each service should be a microservice using this very intersting (post from codeship)[https://blog.codeship.com/utilizing-simplicity-go-easy-development/]
+Each service should be a microservice using this very intersting [post from codeship](https://blog.codeship.com/utilizing-simplicity-go-easy-development/).
 
 ## Contributions
 Contributions to that project are more than welcome, especially... for everything!
 You are welcome to talk to me about it on [Golang slack](https://gophers.slack.com/messages/@maxime/). (If there is a need for it, I might make a channel)
-[Request an invite](http://bit.ly/go-slack-signup) if you are not already on the channel.
+[Request an invite](invite.slack.golangbridge.org) if you are not already on the channel.

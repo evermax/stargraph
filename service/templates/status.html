@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <link rel="stylesheet" href="http://d2fq26gzgmfal8.cloudfront.net/bootstrap.min.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/r/bs/dt-1.10.9/datatables.min.css" />
+</head>
+
+<body>
+    <div class="container">
+        <div class="row">
+            <h1>Domain checker</h1>
+        </div>
+        <div class="row">
+            <table class="table table-bordered" id="queries">
+                <thead>
+                    <tr>
+                        <th>Domains</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range . }}
+                    <tr>
+                        <td>{{ . }}</td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script src="http://d2fq26gzgmfal8.cloudfront.net/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/r/bs/dt-1.10.9/datatables.min.js"></script>
+    <script src="http://d2fq26gzgmfal8.cloudfront.net/bootstrap.min.js"></script>
+    <script>
+        $(document).ready(function()
+        {
+            $('#queries').DataTable();
+        });
+    </script>
+</body>
+</html>

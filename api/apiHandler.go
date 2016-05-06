@@ -42,6 +42,8 @@ func (conf Conf) ApiHandler(w http.ResponseWriter, r *http.Request) {
 	token := tokenHeader[1]
 
 	// Get the data with the token from db.
+	// TODO this should be in the conf,
+	// the database object shouldn't be created to every request
 	database := store.Store{
 		Context: conf.Context,
 	}

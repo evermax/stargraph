@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// IRepoInfo is an interface for the RepoInfo for test purposes 
+// IRepoInfo is an interface for the RepoInfo for test purposes
 // it returns the star count and the URL for the repository.
 // It might evolve over time if some other fields are needed.
 type IRepoInfo interface {
@@ -25,7 +25,7 @@ const (
 )
 
 // RepoInfo is the entity that will be put in the database but
-// it is also used to parse the response from the Github API. 
+// it is also used to parse the response from the Github API.
 type RepoInfo struct {
 	ID           int     `json:"id"`
 	Name         string  `json:"name"`

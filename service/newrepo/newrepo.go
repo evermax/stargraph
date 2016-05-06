@@ -1,4 +1,4 @@
-// Package newrepo contains the worker that should create a new entry in the database for a github repo
+// Package newrepo contains the creator service that should create a new entry in the database for a github repo
 // that is not already in there.
 package newrepo
 
@@ -21,7 +21,8 @@ type Creator string
 
 // NewCreator will create a new creator
 func NewCreator() Creator {
-	return Creator("creator")
+	// connect to the AMQP server
+	return Creator(service.CreatorName)
 }
 
 // Type will return the string "creator" to implement the interface.
@@ -31,7 +32,6 @@ func (c Creator) Type() string {
 
 // Run create a connection to the AMQP server and listen to incoming requests
 // To create Github repository graphs.
-// TODO: Transform that into an method of an object that is called creator (or better name)
 func (c Creator) Run(jobQueue chan service.Job, amqpURL, addQueueN string) error {
 
 	// Dial connection to the AMQP server
@@ -101,6 +101,7 @@ func (c Creator) Run(jobQueue chan service.Job, amqpURL, addQueueN string) error
 				continue
 			}
 			if err != nil {
+				// log it
 				d.Nack(false, true)
 				continue
 			}
