@@ -1,12 +1,11 @@
-package store
+package gestore
 
 import (
-	"fmt"
-
 	"golang.org/x/net/context"
 	"google.golang.org/appengine/datastore"
 
 	"github.com/evermax/stargraph/github"
+	"github.com/evermax/stargraph/lib/store"
 )
 
 const (
@@ -14,23 +13,16 @@ const (
 	stringID = "default_repoinfo"
 )
 
-var (
-	// ErrAlreadyExist is the error return if the Github repository is requested to be created but already exist.
-	ErrAlreadyExist = fmt.Errorf("Repository already stored in database")
-	// ErrAlreadyWorkedOn express the fact that the repository is already claim to work on.
-	ErrAlreadyWorkedOn = fmt.Errorf("Repository already claimed in database")
-)
-
-// Store is a simple struct that hold the context to access the datastore
+// Datastore is a simple struct that hold the context to access the datastore
 // and has several methods to add, get and modify informations stored about Github repositories.
-type Store struct {
+type Datastore struct {
 	Context context.Context
 }
 
-// NewStore create a new Store with a default context.
+// NewDatastore create a new Datastore with a default context.
 // It actually use context.Background().
-func NewStore() Store {
-	return Store{
+func NewDatastore() Datastore {
+	return Datastore{
 		Context: context.Background(),
 	}
 }
@@ -39,11 +31,11 @@ func NewStore() Store {
 // If the repo exist, return the RepoInfo populated
 // If the repo doesn't exist in the database, return Repo with Exist = false
 // Return an error only if something unexepected happened.
-func (store Store) GetRepo(repo string) (github.RepoInfo, *datastore.Key, error) {
+func (db Datastore) GetRepo(repo string) (github.RepoInfo, *datastore.Key, error) {
 	var repoInfo github.RepoInfo
 	key := new(datastore.Key)
-	q := datastore.NewQuery(kind).Ancestor(repoInfoKey(store.Context)).Filter("Name =", repo)
-	for t := q.Run(store.Context); ; {
+	q := datastore.NewQuery(kind).Ancestor(repoInfoKey(db.Context)).Filter("Name =", repo)
+	for t := q.Run(db.Context); ; {
 		var info github.RepoInfo
 		var err error
 		key, err = t.Next(&info)
@@ -62,33 +54,33 @@ func (store Store) GetRepo(repo string) (github.RepoInfo, *datastore.Key, error)
 // AddRepo add a Github repository entry into the database.
 // If the repository exist, return AlreadyExistError.
 // Return an eventual error from the communication with the database.
-func (store Store) AddRepo(repoInfo github.RepoInfo) (*datastore.Key, error) {
-	info, _, err := store.GetRepo(repoInfo.Name)
+func (db Datastore) AddRepo(repoInfo github.RepoInfo) (*datastore.Key, error) {
+	info, _, err := db.GetRepo(repoInfo.Name)
 	if err != nil {
 		return nil, err
 	}
 	if info.Exist() {
-		return nil, ErrAlreadyExist
+		return nil, store.ErrAlreadyExist
 	}
-	return datastore.Put(store.Context, repoInfoKey(store.Context), &repoInfo)
+	return datastore.Put(db.Context, repoInfoKey(db.Context), &repoInfo)
 }
 
 // PutRepo will put the informations about the Github repository in the database
-func (store Store) PutRepo(repoInfo github.RepoInfo, key *datastore.Key) (*datastore.Key, error) {
-	return datastore.Put(store.Context, key, &repoInfo)
+func (db Datastore) PutRepo(repoInfo github.RepoInfo, key *datastore.Key) (*datastore.Key, error) {
+	return datastore.Put(db.Context, key, &repoInfo)
 }
 
 // ClaimWork set the WorkedOn flag of the repoInfo to true and persist it.
-func (store Store) ClaimWork(repoInfo github.RepoInfo, key *datastore.Key) (*datastore.Key, error) {
-	info, _, err := store.GetRepo(repoInfo.Name)
+func (db Datastore) ClaimWork(repoInfo github.RepoInfo, key *datastore.Key) (*datastore.Key, error) {
+	info, _, err := db.GetRepo(repoInfo.Name)
 	if err != nil {
 		return nil, err
 	}
 	if info.WorkedOn {
-		return nil, ErrAlreadyWorkedOn
+		return nil, store.ErrAlreadyWorkedOn
 	}
 	repoInfo.WorkedOn = true
-	return datastore.Put(store.Context, key, &repoInfo)
+	return datastore.Put(db.Context, key, &repoInfo)
 }
 
 // repoInfoKey returns the key used for all repoInfo entries.

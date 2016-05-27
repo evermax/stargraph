@@ -2,10 +2,17 @@ package mq
 
 import (
 	"fmt"
+
 	"github.com/evermax/stargraph/lib/store"
 	"github.com/evermax/stargraph/service"
 	"github.com/streadway/amqp"
 )
+
+type MessageQueue interface {
+	DeclareQueue(string) error
+	Publish(string, []byte) error
+	Consume(store.Store, chan service.Job, string, Receiptor)
+}
 
 type MQ struct {
 	Conn        *amqp.Connection

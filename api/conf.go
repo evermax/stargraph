@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/evermax/stargraph/github"
+	"github.com/evermax/stargraph/lib/store"
 	"github.com/streadway/amqp"
 )
 
@@ -14,6 +15,7 @@ import (
 // and the name of the update repo queue
 type Conf struct {
 	Context     context.Context
+	Database    store.Store
 	Channel     *amqp.Channel
 	Conn        *amqp.Connection
 	AddQueue    string

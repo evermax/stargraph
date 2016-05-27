@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/evermax/stargraph/github"
-	"github.com/evermax/stargraph/lib/store"
 )
 
 const (
@@ -44,11 +43,7 @@ func (conf Conf) ApiHandler(w http.ResponseWriter, r *http.Request) {
 	// Get the data with the token from db.
 	// TODO this should be in the conf,
 	// the database object shouldn't be created to every request
-	database := store.Store{
-		Context: conf.Context,
-	}
-
-	repoInfo, _, err := database.GetRepo(repo)
+	repoInfo, _, err := conf.Database.GetRepo(repo)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(InternalError)

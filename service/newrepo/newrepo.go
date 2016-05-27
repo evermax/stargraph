@@ -32,7 +32,7 @@ func (c Creator) Type() string {
 
 // Run create a connection to the AMQP server and listen to incoming requests
 // To create Github repository graphs.
-func (c Creator) Run(jobQueue chan service.Job, amqpURL, addQueueN string) error {
+func (c Creator) Run(db store.Store, jobQueue chan service.Job, amqpURL, addQueueN string) error {
 
 	// Dial connection to the AMQP server
 	conn, err := amqp.Dial(amqpURL)
@@ -86,15 +86,12 @@ func (c Creator) Run(jobQueue chan service.Job, amqpURL, addQueueN string) error
 		return fmt.Errorf("Failed to register as consumer: %v", err)
 	}
 
-	// Declare the datastore access
-	stre := store.NewStore()
-
 	forever := make(chan bool)
 	go func() {
 		for d := range msgs {
 			log.Printf("Received a message: %s", d.Body)
 
-			err := creatorWork(stre, jobQueue, d.Body)
+			err := creatorWork(db, jobQueue, d.Body)
 			if err == store.ErrAlreadyExist {
 				d.Ack(false)
 				log.Printf("WARN: Asked to recreate %s, aborting", d.Body)
@@ -115,20 +112,20 @@ func (c Creator) Run(jobQueue chan service.Job, amqpURL, addQueueN string) error
 	return nil
 }
 
-func creatorWork(stre store.Store, jobQueue chan service.Job, body []byte) error {
+func creatorWork(db store.Store, jobQueue chan service.Job, body []byte) error {
 	apiJob, err := api.Unmarshal(body)
 	if err != nil {
 		return fmt.Errorf("Umarshalling error with %s: %v", body, err)
 	}
 
-	repoInfo, _, err := stre.GetRepo(apiJob.RepoInfo.Name)
+	repoInfo, _, err := db.GetRepo(apiJob.RepoInfo.Name)
 	if err != nil {
 		return fmt.Errorf("Access to store error with %s: %v", body, err)
 	}
 
 	// Create the repository on the datastore, claim the work
 	repoInfo.WorkedOn = true
-	key, err := stre.AddRepo(repoInfo)
+	key, err := db.AddRepo(repoInfo)
 	if err != nil {
 		return fmt.Errorf("Adding to store error with %s: %v", body, err)
 	}
@@ -145,7 +142,7 @@ func creatorWork(stre store.Store, jobQueue chan service.Job, body []byte) error
 	repoInfo.WorkedOn = false
 	repoInfo.LastUpdate = time.Now().Format(time.RFC3339)
 	repoInfo.LastStarDate = time.Unix(lastStar, 0).Format(time.RFC3339)
-	key, err = stre.PutRepo(repoInfo, key)
+	err = db.PutRepo(repoInfo, key)
 	if err != nil {
 		return fmt.Errorf("Put to store error with %s: %v", body, err)
 	}
