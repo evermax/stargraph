@@ -1,3 +1,5 @@
+// Package gestore contains the implementation of the store.Store interface
+// for the Google Datastore.
 package gestore
 
 import (

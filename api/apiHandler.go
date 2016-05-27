@@ -41,8 +41,6 @@ func (conf Conf) ApiHandler(w http.ResponseWriter, r *http.Request) {
 	token := tokenHeader[1]
 
 	// Get the data with the token from db.
-	// TODO this should be in the conf,
-	// the database object shouldn't be created to every request
 	repoInfo, _, err := conf.Database.GetRepo(repo)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -64,6 +62,11 @@ func (conf Conf) ApiHandler(w http.ResponseWriter, r *http.Request) {
 
 	// if doesn't exist in db, check on github
 	repoInfo, err = github.GetRepoInfo(repo, token)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(InternalError)
+		return
+	}
 	if repoInfo.Exist() {
 		if err := conf.TriggerAddJob(repoInfo, token); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)

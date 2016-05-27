@@ -3,70 +3,41 @@ package api
 import (
 	"encoding/json"
 
-	"golang.org/x/net/context"
-
 	"github.com/evermax/stargraph/github"
+	"github.com/evermax/stargraph/lib/mq"
 	"github.com/evermax/stargraph/lib/store"
-	"github.com/streadway/amqp"
 )
 
-// A structure that hold a AMQP connection and channel
-// It also contain the name of the add repo queue
-// and the name of the update repo queue
+// Conf holds a mq.MessageQueue, the name of the add repo queue
+// and the name of the update repo queue.
 type Conf struct {
-	Context     context.Context
-	Database    store.Store
-	Channel     *amqp.Channel
-	Conn        *amqp.Connection
-	AddQueue    string
-	UpdateQueue string
+	Database     store.Store
+	MessageQueue mq.MessageQueue
+	AddQueue     string
+	UpdateQueue  string
 }
 
-// Start AMQP Connection, open channel of connexion
+// NewConf start AMQP Connection, open channel of connexion
 // Create 2 queues, one to send a new repo job, one to ask for existing repo updates
-func NewConf(amqpURL, addQueueN, updateQueueN string) (Conf, error) {
-	var conf Conf
-	conn, err := amqp.Dial(amqpURL)
+func NewConf(db store.Store, messageQ mq.MessageQueue, addQueueN, updateQueueN string) (conf Conf, err error) {
+	err = messageQ.DeclareQueue(addQueueN)
 	if err != nil {
-		return conf, err
+		return
 	}
-	ch, err := conn.Channel()
+	err = messageQ.DeclareQueue(updateQueueN)
 	if err != nil {
-		return conf, err
-	}
-	addq, err := ch.QueueDeclare(
-		addQueueN, // name
-		true,      // durable
-		false,     // delete when unused
-		false,     // exclusive
-		false,     // no-wait
-		nil,       // arguments
-	)
-	if err != nil {
-		return conf, err
-	}
-	upq, err := ch.QueueDeclare(
-		updateQueueN, // name
-		true,         // durable
-		false,        // delete when unused
-		false,        // exclusive
-		false,        // no-wait
-		nil,          // arguments
-	)
-	if err != nil {
-		return conf, err
+		return
 	}
 	conf = Conf{
-		Context:     context.Background(),
-		Conn:        conn,
-		Channel:     ch,
-		AddQueue:    addq.Name,
-		UpdateQueue: upq.Name,
+		Database:     db,
+		MessageQueue: messageQ,
+		AddQueue:     addQueueN,
+		UpdateQueue:  updateQueueN,
 	}
-	return conf, err
+	return
 }
 
-// Trigger a new add job to the queue in the conf
+// TriggerAddJob triggers a new add job to the queue in the conf
 // With the provided repoInfo and the token
 func (conf Conf) TriggerAddJob(repoInfo github.RepoInfo, token string) error {
 	// Create new Job from the repo info and the token
@@ -77,19 +48,10 @@ func (conf Conf) TriggerAddJob(repoInfo github.RepoInfo, token string) error {
 	}
 
 	// Send to job queue via AMQP
-	return conf.Channel.Publish(
-		"",            // exchange
-		conf.AddQueue, // routing key
-		false,         // mandatory
-		false,
-		amqp.Publishing{
-			DeliveryMode: amqp.Persistent,
-			ContentType:  "application/json",
-			Body:         body,
-		})
+	return conf.MessageQueue.Publish(conf.AddQueue, body)
 }
 
-// Trigger a new update job to the queue in the conf
+// TriggerUpdateJob trigger a new update job to the queue in the conf
 // With the provided repoInfo and the token
 func (conf Conf) TriggerUpdateJob(repoInfo github.RepoInfo, token string) error {
 	// Create new Job from the repo info and the token
@@ -100,16 +62,7 @@ func (conf Conf) TriggerUpdateJob(repoInfo github.RepoInfo, token string) error 
 	}
 
 	// Send to job queue via AMQP
-	return conf.Channel.Publish(
-		"",               // exchange
-		conf.UpdateQueue, // routing key
-		false,            // mandatory
-		false,
-		amqp.Publishing{
-			DeliveryMode: amqp.Persistent,
-			ContentType:  "application/json",
-			Body:         body,
-		})
+	return conf.MessageQueue.Publish(conf.UpdateQueue, body)
 }
 
 type Job struct {

@@ -1,28 +1,23 @@
+// Package mq wrap the github.com/streadway/amqp library
+// to be able to mock it.
 package mq
 
 import (
 	"fmt"
 
-	"github.com/evermax/stargraph/lib/store"
-	"github.com/evermax/stargraph/service"
 	"github.com/streadway/amqp"
 )
 
-type MessageQueue interface {
-	DeclareQueue(string) error
-	Publish(string, []byte) error
-	Consume(store.Store, chan service.Job, string, Receiptor)
-}
-
+// MQ struct is compliant to the MessageQueue interface.
 type MQ struct {
-	Conn        *amqp.Connection
-	Channel     *amqp.Channel
-	CreateQueue string
-	UpdateQueue string
+	Conn    *amqp.Connection
+	Channel *amqp.Channel
 }
 
-// connect to AMQP server, Channel
-func NewMQ(amqpURL, addQueueN, updateQueueN string) (mq MQ, err error) {
+// NewMQ open a connection to AMQP server, open a channel
+// of communication and then return a MQ struct
+// holding the connection and the channel.
+func NewMQ(amqpURL string) (mq MQ, err error) {
 	conn, err := amqp.Dial(amqpURL)
 	if err != nil {
 		return
@@ -31,33 +26,9 @@ func NewMQ(amqpURL, addQueueN, updateQueueN string) (mq MQ, err error) {
 	if err != nil {
 		return
 	}
-	addq, err := ch.QueueDeclare(
-		addQueueN, // name
-		true,      // durable
-		false,     // delete when unused
-		false,     // exclusive
-		false,     // no-wait
-		nil,       // arguments
-	)
-	if err != nil {
-		return
-	}
-	upq, err := ch.QueueDeclare(
-		updateQueueN, // name
-		true,         // durable
-		false,        // delete when unused
-		false,        // exclusive
-		false,        // no-wait
-		nil,          // arguments
-	)
-	if err != nil {
-		return
-	}
 	mq = MQ{
-		Conn:        conn,
-		Channel:     ch,
-		CreateQueue: addq.Name,
-		UpdateQueue: upq.Name,
+		Conn:    conn,
+		Channel: ch,
 	}
 	return
 }
@@ -84,6 +55,8 @@ func (mq MQ) DeclareQueue(queueName string) error {
 	)
 }
 
+// Publish provide a way to publish a message containing
+// the provided body to the queue with name queueName
 func (mq MQ) Publish(queueName string, body []byte) error {
 	return mq.Channel.Publish(
 		"",        // exchange
@@ -97,7 +70,9 @@ func (mq MQ) Publish(queueName string, body []byte) error {
 		})
 }
 
-func (mq MQ) Consume(stre store.Store, jobQueue chan service.Job, queueName string, r Receiptor) error {
+// Consume will start listening to the message queue using the provided queue name.
+// It will call the Receiver function every time a message arrives.
+func (mq MQ) Consume(queueName string, r Receiver) error {
 	msgs, err := mq.Channel.Consume(
 		queueName, // queue
 		"",        // consumer
@@ -116,7 +91,7 @@ func (mq MQ) Consume(stre store.Store, jobQueue chan service.Job, queueName stri
 			msg := Message{
 				delivery: d,
 			}
-			r(stre, jobQueue, msg, forever)
+			r(msg, forever)
 		}
 		forever <- true
 	}()
@@ -124,18 +99,9 @@ func (mq MQ) Consume(stre store.Store, jobQueue chan service.Job, queueName stri
 	return nil
 }
 
-type Receiptor func(store.Store, chan service.Job, Delivery, chan bool)
-
-// Delivery interface provide
-type Delivery interface {
-	Body() []byte
-	Ack(bool) error
-	Nack(bool, bool) error
-}
-
 // Message is the wrapper for the Delivery struct of the github.com/streadway/amqp library.
-// Its purpose is to met the be compliant with the Delivery interface and help making the
-// rest of the project testable.
+// Its purpose is to met the be compliant with the Delivery interface in this package (mq)
+// and help making the rest of the project testable.
 type Message struct {
 	delivery amqp.Delivery
 }
@@ -151,7 +117,7 @@ func (m Message) Ack(multiple bool) error {
 	return nil
 }
 
-// Nack delivers a negative acknowledgement signifying a failure in treating the message.
+// Nack delivers a negative acknowledgment signifying a failure in treating the message.
 // If multiple is true, all the previous messages that weren't aknowledged yet are going
 // to be negatively aknowledged.
 // If requeue is true, it means that the message needs to be requeued.

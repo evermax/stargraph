@@ -11,12 +11,13 @@ const (
 	UpdatorName = "updator"
 )
 
-// ServiceWorker interface will be use by the service runner programm
+// SWorker interface will be use by the service runner programm
 // to run either a Creator and an Updator without any prior knowledge
 // of the service being one or the other
-type ServiceWorker interface {
+type SWorker interface {
 	Type() string
-	Run(chan Job, string, string)
+	Run(string, string)
+	JobQueue() chan Job
 }
 
 // Service structure
@@ -24,7 +25,8 @@ type Service struct {
 	Dispatcher *Dispatcher
 }
 
-func NewService(workers []ServiceWorker, amqpURL, creatorQueue, updatorQueue, address string, maxWorker, jobQSize int) {
+// NewService TODO desc
+func NewService(workers []SWorker, amqpURL, creatorQueue, updatorQueue, address string, maxWorker, jobQSize int) {
 	dispatcher := NewDispatcher(maxWorker, jobQSize)
 	defer dispatcher.Stop()
 	for _, worker := range workers {
@@ -35,7 +37,7 @@ func NewService(workers []ServiceWorker, amqpURL, creatorQueue, updatorQueue, ad
 		case UpdatorName:
 			qName = updatorQueue
 		}
-		go worker.Run(dispatcher.JobQueue, amqpURL, qName)
+		go worker.Run(amqpURL, qName)
 	}
 	// Start HTTP server here for status check and the one for heartbeat
 	service := Service{

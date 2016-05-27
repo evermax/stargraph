@@ -1,6 +1,6 @@
-// Package newrepo contains the creator service that should create a new entry in the database for a github repo
+// Package creator contains the creator service that should create a new entry in the database for a github repo
 // that is not already in there.
-package newrepo
+package creator
 
 import (
 	"fmt"
@@ -16,23 +16,35 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// Creator is just a wrapper of string
-type Creator string
+// Creator contains the database to use, the type of service (creator)
+// and the job queue to send job to workers. It implements the service.SWorker interface.
+type Creator struct {
+	t        string
+	db       store.Store
+	jobQueue chan service.Job
+}
 
-// NewCreator will create a new creator
-func NewCreator() Creator {
+// NewCreator creates a new creator
+func NewCreator(db store.Store) Creator {
 	// connect to the AMQP server
-	return Creator(service.CreatorName)
+	return Creator{
+		t:  service.CreatorName,
+		db: db,
+	}
 }
 
 // Type will return the string "creator" to implement the interface.
 func (c Creator) Type() string {
-	return string(c)
+	return c.t
+}
+
+func (c Creator) JobQueue() chan service.Job {
+	return c.jobQueue
 }
 
 // Run create a connection to the AMQP server and listen to incoming requests
 // To create Github repository graphs.
-func (c Creator) Run(db store.Store, jobQueue chan service.Job, amqpURL, addQueueN string) error {
+func (c Creator) Run(amqpURL, addQueueN string) error {
 
 	// Dial connection to the AMQP server
 	conn, err := amqp.Dial(amqpURL)
@@ -91,7 +103,7 @@ func (c Creator) Run(db store.Store, jobQueue chan service.Job, amqpURL, addQueu
 		for d := range msgs {
 			log.Printf("Received a message: %s", d.Body)
 
-			err := creatorWork(db, jobQueue, d.Body)
+			err := c.creatorWork(d.Body)
 			if err == store.ErrAlreadyExist {
 				d.Ack(false)
 				log.Printf("WARN: Asked to recreate %s, aborting", d.Body)
@@ -112,25 +124,23 @@ func (c Creator) Run(db store.Store, jobQueue chan service.Job, amqpURL, addQueu
 	return nil
 }
 
-func creatorWork(db store.Store, jobQueue chan service.Job, body []byte) error {
+func (c Creator) creatorWork(body []byte) error {
 	apiJob, err := api.Unmarshal(body)
 	if err != nil {
 		return fmt.Errorf("Umarshalling error with %s: %v", body, err)
 	}
 
-	repoInfo, _, err := db.GetRepo(apiJob.RepoInfo.Name)
-	if err != nil {
-		return fmt.Errorf("Access to store error with %s: %v", body, err)
+	repoInfo := github.RepoInfo{
+		WorkedOn: true,
 	}
 
-	// Create the repository on the datastore, claim the work
-	repoInfo.WorkedOn = true
-	key, err := db.AddRepo(repoInfo)
+	// Create the repository on the store, claim the work
+	key, err := c.db.AddRepo(repoInfo)
 	if err != nil {
 		return fmt.Errorf("Adding to store error with %s: %v", body, err)
 	}
 
-	timestamps, err := GetAllTimestamps(jobQueue, 100, apiJob.Token, repoInfo)
+	timestamps, err := GetAllTimestamps(c.jobQueue, 100, apiJob.Token, repoInfo)
 	if err != nil {
 		return fmt.Errorf("Error with %s: %v", body, err)
 	}
@@ -142,15 +152,15 @@ func creatorWork(db store.Store, jobQueue chan service.Job, body []byte) error {
 	repoInfo.WorkedOn = false
 	repoInfo.LastUpdate = time.Now().Format(time.RFC3339)
 	repoInfo.LastStarDate = time.Unix(lastStar, 0).Format(time.RFC3339)
-	err = db.PutRepo(repoInfo, key)
+	err = c.db.PutRepo(repoInfo, key)
 	if err != nil {
 		return fmt.Errorf("Put to store error with %s: %v", body, err)
 	}
 
 	// TODO: Think if this could be done on the fly first
 	// TODO: lib.CanvasJS(timestamps, repoInfo, buffer)
-	// Then send the buffer to Google Storage
-	// service.Objects.Insert(*bucketName, object).Media(file).Do()
+	// Then send the buffer to the database
+	// TODO: wrap that into the dbaccess file service.Objects.Insert(*bucketName, object).Media(file).Do()
 	// https://cloud.google.com/storage/docs/json_api/v1/json-api-go-samples
 	return nil
 }

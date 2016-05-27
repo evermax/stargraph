@@ -1,4 +1,4 @@
-package newrepo
+package creator
 
 import (
 	"fmt"
