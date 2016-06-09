@@ -1,6 +1,10 @@
 # Stargraph
 ## The perfect tool to plot a chart of stars on Github repositories
 
+[![Build Status](https://img.shields.io/travis/evermax/stargraph.svg)](https://travis-ci.org/evermax/stargraph)
+[![Build Status](https://drone.io/github.com/evermax/stargraph/status.png)](https://drone.io/github.com/evermax/stargraph/latest)
+[![Coverage Status](https://coveralls.io/repos/evermax/stargraph/badge.png?branch=master)](https://coveralls.io/r/evermax/stargraph?branch=master)
+
 There is a CLI where you provide your Github API token via `-t` and the `:username/:reponame` via the `-r` parameters.
 If you don't have a Github API token, you will be restricted by the API to 60 calls per hours.
 
