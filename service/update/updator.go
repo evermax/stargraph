@@ -19,11 +19,10 @@ func (u Updator) Type() string {
 
 // Run create a connection to the AMQP server and listen to incoming requests
 // To update Github repository graphs.
-func (u Updator) Run(jobQueue chan service.Job, amqpURL, addQueueN string) error {
+func (u Updator) Run() {
 	// Get all the timestamps from the database
 	// Get the number of pages and the repo info from Github
 	// Compare and go back until it is alright
 	// Update the DB.
 	// Set it to not worked on anymore
-	return nil
 }

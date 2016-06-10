@@ -16,7 +16,7 @@ const (
 // of the service being one or the other
 type SWorker interface {
 	Type() string
-	Run(string, string)
+	Run()
 	JobQueue() chan Job
 }
 
@@ -30,14 +30,7 @@ func NewService(workers []SWorker, amqpURL, creatorQueue, updatorQueue, address 
 	dispatcher := NewDispatcher(maxWorker, jobQSize)
 	defer dispatcher.Stop()
 	for _, worker := range workers {
-		var qName string
-		switch worker.Type() {
-		case CreatorName:
-			qName = creatorQueue
-		case UpdatorName:
-			qName = updatorQueue
-		}
-		go worker.Run(amqpURL, qName)
+		go worker.Run()
 	}
 	// Start HTTP server here for status check and the one for heartbeat
 	service := Service{

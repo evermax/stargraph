@@ -28,7 +28,6 @@ type Creator struct {
 
 // NewCreator creates a new creator
 func NewCreator(db store.Store, queue mq.MessageQueue) Creator {
-	// connect to the AMQP server
 	return Creator{
 		t:        service.CreatorName,
 		db:       db,
@@ -52,7 +51,8 @@ func (c Creator) Run() error {
 }
 
 func (c Creator) receiveMessage(d mq.Delivery, forever chan bool) {
-	log.Printf("Received a message: %s", d.Body)
+	body := d.Body()
+	log.Printf("Received a message: %s", body)
 
 	err := c.creatorWork(d.Body())
 	if err == store.ErrAlreadyExist {
@@ -77,13 +77,17 @@ func (c Creator) creatorWork(body []byte) error {
 	}
 
 	repoInfo := github.RepoInfo{
-		WorkedOn: true,
+		ID:           apiJob.RepoInfo.ID,
+		Name:         apiJob.RepoInfo.Name,
+		Count:        apiJob.RepoInfo.Count,
+		CreationDate: apiJob.RepoInfo.CreationDate,
+		WorkedOn:     true,
 	}
 
 	// Create the repository on the store, claim the work
 	key, err := c.db.AddRepo(repoInfo)
 	if err != nil {
-		return fmt.Errorf("Adding to store error with %s: %v", body, err)
+		return err
 	}
 
 	timestamps, err := GetAllTimestamps(c.jobQueue, 100, apiJob.Token, repoInfo)

@@ -7,6 +7,8 @@ package mq
 type MessageQueue interface {
 	DeclareQueue(string) error
 	Publish(string, []byte) error
+	// Consume should block until the underlying connection to is closed
+	// or the Receiver function send a bool to the channel it's passed
 	Consume(string, Receiver) error
 }
 
@@ -17,7 +19,7 @@ type MessageQueue interface {
 // acknowledge or non acknowledge the message for it to be
 // requeued or not.
 // The boolean channel can make the message queue stop consuming the queue.
-// If so, it will be needed to call Consume again.
+// If so, it will be needed to call Consume again, because the function will return.
 type Receiver func(Delivery, chan bool)
 
 // Delivery interface provide a wrapper for the message and acknowledgment
