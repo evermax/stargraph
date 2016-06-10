@@ -11,25 +11,28 @@ import (
 
 	"github.com/evermax/stargraph/api"
 	"github.com/evermax/stargraph/github"
+	"github.com/evermax/stargraph/lib/mq"
 	"github.com/evermax/stargraph/lib/store"
 	"github.com/evermax/stargraph/service"
-	"github.com/streadway/amqp"
 )
 
 // Creator contains the database to use, the type of service (creator)
 // and the job queue to send job to workers. It implements the service.SWorker interface.
 type Creator struct {
-	t        string
-	db       store.Store
-	jobQueue chan service.Job
+	t         string
+	db        store.Store
+	messageQ  mq.MessageQueue
+	jobQueue  chan service.Job
+	queueName string
 }
 
 // NewCreator creates a new creator
-func NewCreator(db store.Store) Creator {
+func NewCreator(db store.Store, queue mq.MessageQueue) Creator {
 	// connect to the AMQP server
 	return Creator{
-		t:  service.CreatorName,
-		db: db,
+		t:        service.CreatorName,
+		db:       db,
+		messageQ: queue,
 	}
 }
 
@@ -44,84 +47,27 @@ func (c Creator) JobQueue() chan service.Job {
 
 // Run create a connection to the AMQP server and listen to incoming requests
 // To create Github repository graphs.
-func (c Creator) Run(amqpURL, addQueueN string) error {
+func (c Creator) Run() error {
+	return c.messageQ.Consume(c.queueName, c.receiveMessage)
+}
 
-	// Dial connection to the AMQP server
-	conn, err := amqp.Dial(amqpURL)
-	if err != nil {
-		return fmt.Errorf("Failed to connect to AMQP with url %s: %v", amqpURL, err)
+func (c Creator) receiveMessage(d mq.Delivery, forever chan bool) {
+	log.Printf("Received a message: %s", d.Body)
+
+	err := c.creatorWork(d.Body())
+	if err == store.ErrAlreadyExist {
+		d.Ack(false)
+		log.Printf("WARN: Asked to recreate %s, aborting", d.Body)
+		return
 	}
-	defer conn.Close()
-
-	// Open a channel of communication through the connection
-	ch, err := conn.Channel()
 	if err != nil {
-		return fmt.Errorf("Failed to open a channel: %v", err)
-	}
-	defer ch.Close()
-
-	// Declare a queue
-	q, err := ch.QueueDeclare(
-		addQueueN, // name
-		true,      // durable
-		false,     // delete when unused
-		false,     // exclusive
-		false,     // no-wait
-		nil,       // arguments
-	)
-	if err != nil {
-		return fmt.Errorf("Failed to declare a queue: %v", err)
+		// log it
+		d.Nack(false, true)
+		return
 	}
 
-	err = ch.Qos(
-		1,     // prefetch count
-		0,     // prefetch size
-		false, // global
-	)
-	if err != nil {
-		return fmt.Errorf("Failed to set QoS: %v", err)
-	}
-
-	// Register as a consumer of the queue and
-	// return a channel that brings the incoming messages
-	msgs, err := ch.Consume(
-		q.Name, // queue
-		"",     // consumer
-		false,  // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
-	)
-
-	if err != nil {
-		return fmt.Errorf("Failed to register as consumer: %v", err)
-	}
-
-	forever := make(chan bool)
-	go func() {
-		for d := range msgs {
-			log.Printf("Received a message: %s", d.Body)
-
-			err := c.creatorWork(d.Body)
-			if err == store.ErrAlreadyExist {
-				d.Ack(false)
-				log.Printf("WARN: Asked to recreate %s, aborting", d.Body)
-				continue
-			}
-			if err != nil {
-				// log it
-				d.Nack(false, true)
-				continue
-			}
-
-			d.Ack(false)
-			log.Printf("Done")
-		}
-		forever <- true
-	}()
-	<-forever
-	return nil
+	d.Ack(false)
+	log.Printf("Done")
 }
 
 func (c Creator) creatorWork(body []byte) error {
