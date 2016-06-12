@@ -40,6 +40,7 @@ func (c Creator) Type() string {
 	return c.t
 }
 
+// JobQueue ...
 func (c Creator) JobQueue() chan service.Job {
 	return c.jobQueue
 }
@@ -57,7 +58,7 @@ func (c Creator) receiveMessage(d mq.Delivery, forever chan bool) {
 	err := c.creatorWork(d.Body())
 	if err == store.ErrAlreadyExist {
 		d.Ack(false)
-		log.Printf("WARN: Asked to recreate %s, aborting", d.Body)
+		log.Printf("WARN: Asked to recreate %s, aborting", body)
 		return
 	}
 	if err != nil {
