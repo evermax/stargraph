@@ -1,20 +1,27 @@
 package update
 
 import (
+	"github.com/evermax/stargraph/lib/mq"
+	"github.com/evermax/stargraph/lib/store"
 	"github.com/evermax/stargraph/service"
 )
 
-// Updator is just a wrapper of string
-type Updator string
-
-// NewUpdator will create a new updator
-func NewUpdator() Updator {
-	return Updator(service.UpdatorName)
+// Updator ... TODO
+type Updator struct {
+	t         string
+	db        store.Store
+	messageQ  mq.MessageQueue
+	jobQueue  chan service.Job
+	queueName string
 }
 
-// Type will return the string "updator" to implement the interface.
-func (u Updator) Type() string {
-	return string(u)
+// NewUpdator will create a new updator
+func NewUpdator(db store.Store, queue mq.MessageQueue) Updator {
+	return Updator{
+		t:        service.UpdatorName,
+		db:       db,
+		messageQ: queue,
+	}
 }
 
 // Run create a connection to the AMQP server and listen to incoming requests
@@ -25,4 +32,9 @@ func (u Updator) Run() {
 	// Compare and go back until it is alright
 	// Update the DB.
 	// Set it to not worked on anymore
+}
+
+// JobQueue ... TODO
+func (u Updator) JobQueue() chan service.Job {
+	return u.jobQueue
 }

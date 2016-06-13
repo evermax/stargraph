@@ -35,12 +35,7 @@ func NewCreator(db store.Store, queue mq.MessageQueue) Creator {
 	}
 }
 
-// Type will return the string "creator" to implement the interface.
-func (c Creator) Type() string {
-	return c.t
-}
-
-// JobQueue ...
+// JobQueue ... TODO
 func (c Creator) JobQueue() chan service.Job {
 	return c.jobQueue
 }
@@ -159,6 +154,10 @@ L:
 		select {
 		case err = <-errchan:
 			j++
+			// TODO better error handling
+			// Example: get the page of the call
+			// that failed and requeue a job for it
+			// Also log it
 			if j >= numberOfAPICall {
 				break L
 			}

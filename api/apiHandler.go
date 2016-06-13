@@ -16,10 +16,10 @@ const (
 )
 
 var (
-	MissingRepoError  = ErrorMessage{Error: "Repo parameter missing"}
-	MissingTokenError = ErrorMessage{Error: "Token header missing"}
-	InternalError     = ErrorMessage{Error: "Sorry, internal server error"}
-	NotFoundError     = ErrorMessage{Error: "Repo not on Github"}
+	MissingRepoError  = ErrorMessage{Error: "Repo parameter missing", Status: 400}
+	MissingTokenError = ErrorMessage{Error: "Token header missing", Status: 400}
+	InternalError     = ErrorMessage{Error: "Sorry, internal server error", Status: 500}
+	NotFoundError     = ErrorMessage{Error: "Repository not on Github", Status: 404}
 )
 
 func (conf Conf) ApiHandler(w http.ResponseWriter, r *http.Request) {
@@ -83,5 +83,6 @@ func (conf Conf) ApiHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type ErrorMessage struct {
-	Error string
+	Error  string
+	Status int
 }

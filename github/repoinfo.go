@@ -102,6 +102,9 @@ func GetRepoInfo(token, repo string) (info RepoInfo, err error) {
 }
 
 // BuildLinksFormat will build the Link header parser.
+// This header is the only way to know how to navigate the
+// different star pages. Especially, it helps to know what is
+// the last page.
 // See https://developer.github.com/v3/activity/starring/
 func BuildLinksFormat(url string) string {
 	if strings.Contains(url, "?") {

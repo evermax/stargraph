@@ -15,7 +15,6 @@ const (
 // to run either a Creator and an Updator without any prior knowledge
 // of the service being one or the other
 type SWorker interface {
-	Type() string
 	Run()
 	JobQueue() chan Job
 }
