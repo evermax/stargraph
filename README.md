@@ -36,7 +36,7 @@ I made a proof of concept for this project on [Stargraph.co](http://stargraph.co
 
 The structure of the website should be something like this:
 
-![Architecture](architecture.png)
+![Architecture](Stargraph-Structure.png)
 
 Where you have an API and a website talking to that API, asking for the backend to get the data for a Github repo.
 If the repo does exist it will return a ressource URL where the client should query periodically to know if the data is ready.
